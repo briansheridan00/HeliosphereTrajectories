@@ -103,7 +103,11 @@ function PlasmaVelocity(u, input)
 
 
     elseif plasma_model == "turning_turning"
-        error("Plasma model 'turning_turning' not implemented yet.")        
+        error("Plasma model 'turning_turning' not implemented yet.") 
+        
+        
+    else 
+        error("Plasma model not recognised")
     end 
 
 

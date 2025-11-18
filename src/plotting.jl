@@ -1,5 +1,7 @@
 using Plots 
 using TOML 
+using Dates 
+
 include(joinpath(@__DIR__, "constants.jl")) 
 
 #input_file_path = joinpath(@__DIR__, "..", "main", "input_values.toml") 
@@ -17,6 +19,7 @@ function PlotTrajectory( sol, input )
     n_grid = input["n_grid"]
     plot_color = input["plot_color"]
     dist_measure = input["dist_measure"] 
+    plasma_model = input["plasma_model"] 
 
     # --- Extract components ---
     sol_time = sol.t ./ yr
@@ -51,6 +54,12 @@ function PlotTrajectory( sol, input )
             cbar_title = "Time [yr]"
         end
 
+        trajectory_duration = (input["max_time"] - input["min_time"]) / yr 
+        title_text =
+            "Beta: $(params[1]); Qm: $(params[2]); Plasma Model: $(plasma_model); \n" *
+            "Duration: $(trajectory_duration) yrs; Plane: $(title_plane)" 
+
+
         plt = plot(
             xdata, ydata,
             linez = sol_coloring,
@@ -60,7 +69,7 @@ function PlotTrajectory( sol, input )
             colorbar_title = cbar_title,
             xlabel = xlabel_,
             ylabel = ylabel_,
-            title = "Trajectory: $title_plane",
+            title = title_text, #"Trajectory: $title_plane",
             size = (900, 550),
             legend = false,
             grid = true,
@@ -186,16 +195,40 @@ function PlotTrajectory( sol, input )
         return plt
     end
 
-    # --- Select projection plane(s) ---
+    # --- Select projection plane ---
     if plane == "xz"
-        return make_plane_plot(sol_x, sol_z, "x [AU]", "z [AU]", "x–z plane"; is_xz=true)
+        plt = make_plane_plot(sol_x, sol_z, "x [AU]", "z [AU]", "x–z plane"; is_xz=true)
     elseif plane == "xy"
-        return make_plane_plot(sol_x, sol_y, "x [AU]", "y [AU]", "x–y plane"; is_xz=false)
+        plt = make_plane_plot(sol_x, sol_y, "x [AU]", "y [AU]", "x–y plane"; is_xz=false)
     elseif plane == "both"
         plt_xy = make_plane_plot(sol_x, sol_y, "x [AU]", "y [AU]", "x–y plane"; is_xz=false)
         plt_xz = make_plane_plot(sol_x, sol_z, "x [AU]", "z [AU]", "x–z plane"; is_xz=true)
-        return plot(plt_xy, plt_xz, layout=(2,1), size=(950,900), margin=4Plots.mm)
+        plt = plot(plt_xy, plt_xz, layout=(2,1), size=(950,900), margin=4Plots.mm)
     else
         error("Invalid plane argument. Use \"xz\", \"xy\", or \"both\".")
     end
-end
+
+    # Save figure if requested 
+    if get(input, "save_fig", false) == true
+        q_over_m = params[2]   # Q/m stored in p = [something, q/m, ...]
+
+        # Timestamp: YYYY-MM-DD-HH-MM
+        date_str = Dates.format(Dates.now(), "yyyy-mm-dd--HH-MM-SS")
+
+        # Build filename: Year-Month-Day-Hour-Min-q_over_m.png
+        fname = "$(date_str)--Qm_$(q_over_m)--$(plasma_model).png"
+
+        # Save under /data relative to project root
+        filename = joinpath(@__DIR__, "..", "data", fname)
+
+        try
+            savefig(plt, filename)
+            println("Saved figure to: $filename")
+        catch e
+            @warn "Failed to save figure" error=e
+        end
+    end
+
+
+    return plt 
+end 

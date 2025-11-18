@@ -8,4 +8,4 @@ Julia code to investigate the trajectories of interstellar dust particles throug
 Work carried out within the Astrodust group of Dr. Veerle Sterken at ETH Zürich.  
 
 
-Last updated: 17.11.2025  
+Last updated: 18.11.2025

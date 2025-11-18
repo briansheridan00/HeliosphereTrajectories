@@ -32,4 +32,5 @@ Note the following description of the input file parameters.
 | `plot_sun` | The boolean value to choose whether to plot the sun or not. |
 | `plot_vectors` | The boolean value whether to plot the plasma velocity vectors or not. |
 | `n_grid` | The number density of the grid of plasma velocity vector arrows. Often choose 20. |
-| `plot_color` | The value with which the trajectory is colored; Options: "speed" or "time" |
+| `plot_color` | The value with which the trajectory is colored; Options: "speed" or "time". |
+| `save_fig` | A boolean option to save the figure in a data specific folder. |

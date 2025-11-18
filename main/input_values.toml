@@ -2,33 +2,33 @@ distance_HP = 100.0
 distance_TS = 80.0
 
 B_mag_Heliopause = 0.15e-9
-B_mag_ISM = 1.2e-9
+B_mag_ISM = 0.6e-9
 B_direction_Heliopause = 1.0
 
 ISM_plasma_velocity = 26000.0
 Heliosheath_plasma_velocity = 100000.0
 Inner_Solar_system_velocity = 400000.0
 
-distance_Turning = 7.0
+distance_Turning = 5.0
 
 mode = "full"
-dist_measure = "spherical"
-plasma_model = "vertical_turning"
+dist_measure = "flat"
+plasma_model = "straight_straight"
 
 
-x0_position = 125.0
+x0_position = 110.0 
 y0_position = 0.0
 z0_position = 1.0 
 
 alpha_angle = 180.0
-beta_angle = -10.0
+beta_angle = 0.0 
 
 min_time = 0.0
-max_time = 8.0
-dt = 1500.0
+max_time = 7.0
+dt = 1200.0 
 
 beta_value = 1.0
-q_over_m_value = 500.0 
+q_over_m_value = 5.0 
 
 
 plane = "xz" 
@@ -36,3 +36,4 @@ plot_sun = false
 plot_vectors = true 
 n_grid = 20 
 plot_color = "speed"
+save_fig = false  
