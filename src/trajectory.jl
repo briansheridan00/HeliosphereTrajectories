@@ -32,8 +32,8 @@ function EqMotion!(du, u, p, t, input)
         #du[4], du[5], du[6] = du_vec 
 
     elseif mode == "full" # Gravity, Solar Radiation Pressure, and Lorentz Force 
-        v_rel = u[4:6] - PlasmaVelocity(u; input=input) 
-        B = B_field(u; input=input) 
+        v_rel = u[4:6] - PlasmaVelocity(u, input) 
+        B = B_field(u, input) 
         rnorm = norm(u[1:3]) # Always have spherical rnorm for gravity. 
         cross_v_B = cross(v_rel, B) 
         forces_prefactor = ((1 - beta) * GM_Sun / rnorm^3)

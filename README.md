@@ -1,6 +1,6 @@
-# Heliosphere Trajectories 
-
 ![HelioPaths Logo](HelioPaths-Full.png "Charting dust trajectories through the solar system")
+
+# Heliosphere Trajectories 
 
 Julia code to investigate the trajectories of interstellar dust particles through the solar system. Particular focus on the influence of the heliopuase, heliosheath and termination hsock on the scattering and filtering of dust trajectories. 
 

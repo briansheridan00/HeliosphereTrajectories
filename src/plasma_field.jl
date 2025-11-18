@@ -45,41 +45,47 @@ function PlasmaVelocity(u, input)
     elseif plasma_model == "vertical_straight"
         if rnorm <= distance_HP
             if dist_measure == "flat"
-                Plasma_vec = [0.0, 0.0, Heliosheath_plasma_velocity]
+                Plasma_vec = Heliosheath_plasma_velocity .* [0.0, 0.0, u[3] >= 0 ? 1.0 : -1.0]
             elseif dist_measure == "spherical"
-                r_vec = u[1:3] 
-                ref_axis = [0.0, 1.0, 0.0] 
-                vec_dir = cross(r_vec, ref_axis)
-                if norm(vec_dir) < 1e-12 # fallback if cross product is zero
-                    ref_axis = [0.0, 0.0, 1.0]
-                    vec_dir = cross(r_vec, ref_axis)
+                r_vec = u[1:3]
+                x, y, z = r_vec[1], r_vec[2], r_vec[3] #r_vec...
+                rho = sqrt(x^2 + y^2)
+                if rho < 1e-12
+                    theta_hat = [0.0, 0.0, 1.0]  # Particle is on z axis, fallback direction
+                    theta_hat .= z > 0 ? -theta_hat : theta_hat
+                else
+                    theta_hat = [x*z/(rnorm*rho), y*z/(rnorm*rho), -rho/rnorm] # Polar unit vector in Cartesian coordinates 
+                    theta_hat .= z > 0 ? -theta_hat : theta_hat                  
                 end
-                Plasma_vec = Heliosheath_plasma_velocity .* vec_dir ./ norm(vec_dir)  
+                Plasma_vec = Heliosheath_plasma_velocity .* theta_hat
             else 
                 @warn "Distance measure not recognised - plasma velocity falling back to flat" 
-                Plasma_vec = [0.0, 0.0, Heliosheath_plasma_velocity] 
-            end 
-        else 
+                Plasma_vec =  Heliosheath_plasma_velocity .* [0.0, 0.0, u[3] >= 0 ? 1.0 : -1.0]
+            end                 
+        else
             Plasma_vec = [-ISM_plasma_velocity, 0.0, 0.0]
-        end  
+        end    
 
 
     elseif plasma_model == "vertical_turning" 
         if rnorm <= distance_HP
             if dist_measure == "flat"
-                Plasma_vec = [0.0, 0.0, Heliosheath_plasma_velocity]
+                Plasma_vec =  Heliosheath_plasma_velocity .* [0.0, 0.0, u[3] >= 0 ? 1.0 : -1.0]
             elseif dist_measure == "spherical"
-                r_vec = u[1:3] 
-                ref_axis = [0.0, 1.0, 0.0] 
-                vec_dir = cross(r_vec, ref_axis)
-                if norm(vec_dir) < 1e-12 # fallback if cross product is zero
-                    ref_axis = [0.0, 0.0, 1.0]
-                    vec_dir = cross(r_vec, ref_axis)
+                r_vec = u[1:3]
+                x, y, z = r_vec[1], r_vec[2], r_vec[3] #r_vec...
+                rho = sqrt(x^2 + y^2)
+                if rho < 1e-12
+                    theta_hat = [0.0, 0.0, 1.0]  # Particle is on z axis, fallback direction
+                    theta_hat .= z > 0 ? -theta_hat : theta_hat
+                else
+                    theta_hat = [x*z/(rnorm*rho), y*z/(rnorm*rho), -rho/rnorm] # Polar unit vector in Cartesian coordinates 
+                    theta_hat .= z > 0 ? -theta_hat : theta_hat                  
                 end
-                Plasma_vec = Heliosheath_plasma_velocity .* vec_dir ./ norm(vec_dir)  
+                Plasma_vec = Heliosheath_plasma_velocity .* theta_hat
             else 
                 @warn "Distance measure not recognised - plasma velocity falling back to flat" 
-                Plasma_vec = [0.0, 0.0, Heliosheath_plasma_velocity] 
+                Plasma_vec =  Heliosheath_plasma_velocity .* [0.0, 0.0, u[3] >= 0 ? 1.0 : -1.0]
             end 
 
         elseif rnorm > distance_HP + turning_distance 
@@ -95,9 +101,11 @@ function PlasmaVelocity(u, input)
         end             
 
 
+
     elseif plasma_model == "turning_turning"
-        error("Plasma model 'turning_turning' not implemented yet.")
+        error("Plasma model 'turning_turning' not implemented yet.")        
     end 
+
 
     return Plasma_vec 
 end 

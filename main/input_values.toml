@@ -25,7 +25,7 @@ beta_angle = -10.0
 
 min_time = 0.0
 max_time = 8.0
-dt = 1000.0
+dt = 1500.0
 
 beta_value = 1.0
 q_over_m_value = 500.0 
