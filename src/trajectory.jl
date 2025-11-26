@@ -1,45 +1,46 @@
 using DifferentialEquations 
 using LinearAlgebra 
 using TOML 
+
 include(joinpath(@__DIR__, "constants.jl"))
 include(joinpath(@__DIR__, "magnetic_field.jl"))
 include(joinpath(@__DIR__, "plasma_field.jl")) 
 
-#input_file_path = joinpath(@__DIR__, "..", "main", "input_values.toml") 
-#input_dict = load_parameters(input_file_path) 
 
-
-# Define the equation of motion 
-# The ! indicates the function mutates its first argument (du) 
+# Define the equation of motion - the ! indicates the function mutates its first argument (du). 
 function EqMotion!(du, u, p, t, input) 
-
     """ 
     Define the equation of motion. 
+        Arguments: 
+            u = [x, y, z, vx, vy, vz] 
+            p = [beta, q_over_m] 
+            t = (minimum_time, maximum_time) 
     """
     mode = input["mode"]
     beta, q_over_m = input["p"] # p consists of the input parameters 
 
-    # u = [position x, position y, position z, velocity x, velocity y, velocity z] 
+    # Positions and velocities contained within u. 
     du[1:3] = u[4:6] 
 
     # Return updated acceleration equations 
     if mode == "reduced" # Just Gravity 
         rnorm = norm(u[1:3]) # Always have spherical rnorm for gravity. 
-        du[4] = - (GM_Sun / rnorm^3) * u[1] 
-        du[5] = - (GM_Sun / rnorm^3) * u[2] 
-        du[6] = - (GM_Sun / rnorm^3) * u[3]  
-        #du_vec = GravityForce(u) 
-        #du[4], du[5], du[6] = du_vec 
+        du[4:6] = - (GM_Sun / rnorm^3) .* u[1:3] 
+        #du[4] = - (GM_Sun / rnorm^3) * u[1] 
+        #du[5] = - (GM_Sun / rnorm^3) * u[2] 
+        #du[6] = - (GM_Sun / rnorm^3) * u[3]  
+        #du[4], du[5], du[6] = GravityForce(u)
 
     elseif mode == "full" # Gravity, Solar Radiation Pressure, and Lorentz Force 
         v_rel = u[4:6] - PlasmaVelocity(u, input) 
-        B = B_field(u, input) 
+        B = B_field(u, input; t=t) 
         rnorm = norm(u[1:3]) # Always have spherical rnorm for gravity. 
-        cross_v_B = cross(v_rel, B) 
-        forces_prefactor = ((1 - beta) * GM_Sun / rnorm^3)
-        du[4] = - forces_prefactor * u[1] + q_over_m * cross_v_B[1]
-        du[5] = - forces_prefactor * u[2] + q_over_m * cross_v_B[2]
-        du[6] = - forces_prefactor * u[3] + q_over_m * cross_v_B[3] 
+        a_Gravity_SRP = - ((1 - beta) * GM_Sun / rnorm^3) .* u[1:3] 
+        a_Lorentz = q_over_m .* cross(v_rel, B) 
+        #du[4] = forces_prefactor .* u[1] + q_over_m .* cross_v_B[1]
+        #du[5] = forces_prefactor .* u[2] + q_over_m .* cross_v_B[2]
+        #du[6] = forces_prefactor .* u[3] + q_over_m .* cross_v_B[3] 
+        du[4:6] = a_Gravity_SRP + a_Lorentz 
 
     else # Error for invalid mode
         error("Invalid mode: '$mode'. Allowed modes are \"reduced\" or \"full\".")

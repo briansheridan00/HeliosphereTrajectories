@@ -13,7 +13,6 @@ include( joinpath(@__DIR__, "..", "src", "trajectory.jl") )
 input_file_path = joinpath(@__DIR__, "..", "main", "input_values.toml") 
 input_dict = load_parameters(input_file_path) 
 
-
 # Compute trajectory. 
 sol = ComputeTrajectory( input_dict )
 

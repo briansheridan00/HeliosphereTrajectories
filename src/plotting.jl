@@ -2,223 +2,15 @@ using Plots
 using TOML 
 using Dates 
 
-include(joinpath(@__DIR__, "constants.jl")) 
-
-#input_file_path = joinpath(@__DIR__, "..", "main", "input_values.toml") 
-#input_dict = load_parameters(input_file_path) 
+include(joinpath(@__DIR__, "constants.jl"))  
 
 
-function PlotTrajectory( sol, input ) 
-
-    HeliopauseLine = input["distance_HP"]
-    params = input["p"]
-    plot_color = input["plot_color"]
-    plane = input["plane"] 
-    plot_sun = input["plot_sun"]
-    plot_vectors = input["plot_vectors"]
-    n_grid = input["n_grid"]
-    plot_color = input["plot_color"]
-    dist_measure = input["dist_measure"] 
-    plasma_model = input["plasma_model"] 
-
-    # --- Extract components ---
-    sol_time = sol.t ./ yr
-    sol_x = [u[1] for u in sol.u] ./ AU
-    sol_y = [u[2] for u in sol.u] ./ AU
-    sol_z = [u[3] for u in sol.u] ./ AU
-    sol_speed = [norm(u[4:6]) for u in sol.u] ./ 1e3   # in km/s
-
-    # --- Downsample trajectory if too long ---
-    npts = length(sol_time)
-    if npts > 1000
-        idx = round.(Int, range(1, npts, length=1000))
-        sol_time = sol_time[idx]
-        sol_x, sol_y, sol_z, sol_speed = sol_x[idx], sol_y[idx], sol_z[idx], sol_speed[idx]
-    end
-
-    # --- Helper function to make a single plot ---
-    function make_plane_plot(xdata, ydata, xlabel_, ylabel_, title_plane; is_xz=false)
-        xleft, xright = (maximum([70, minimum(xdata)-9]), minimum([130, maximum(xdata)+9])) #(70, 130)
-        ybottom, ytop = (minimum(ydata)-12, maximum(ydata)+12)
-        boundary_scale = 40.0
-
-        # Determine color mapping (time vs speed)
-        if plot_color == "time"
-            sol_coloring = sol_time
-            cbar_title = "Time [yr]"
-        elseif plot_color == "speed"
-            sol_coloring = sol_speed
-            cbar_title = "Speed [km/s]"
-        else
-            sol_coloring = sol_time
-            cbar_title = "Time [yr]"
-        end
-
-        trajectory_duration = (input["max_time"] - input["min_time"]) / yr 
-        title_text =
-            "Beta: $(params[1]); Qm: $(params[2]); Plasma Model: $(plasma_model); \n" *
-            "Duration: $(trajectory_duration) yrs; Plane: $(title_plane)" 
-
-
-        plt = plot(
-            xdata, ydata,
-            linez = sol_coloring,
-            linewidth = 1.5,
-            color = :plasma,
-            colorbar = :true,
-            colorbar_title = cbar_title,
-            xlabel = xlabel_,
-            ylabel = ylabel_,
-            title = title_text, #"Trajectory: $title_plane",
-            size = (900, 550),
-            legend = false,
-            grid = true,
-            gridlinewidth = 2,
-            margin = 2Plots.mm,
-            alpha = 0.95,
-            xlims = (xleft, xright), #(maximum([xleft, minimum(xdata)-5]), minimum([xright, maximum(xdata)+5])), 
-            ylims = (ybottom, ytop) #(minimum(ydata)-12, maximum(ydata)+12)
-        )
-
-        # --- Plot plasma velocity arrows ---
-        if plot_vectors
-            xgrid = range(xleft, xright, length=n_grid)
-            #ygrid = range(minimum([minimum(ydata),-boundary_scale]), 
-            #                maximum([maximum(ydata),boundary_scale]), length=n_grid) 
-            ygrid = range(ybottom, ytop, length=n_grid) 
-
-            X, Y, U, V = Float64[], Float64[], Float64[], Float64[]
-            for x in xgrid, y in ygrid
-                uvec = is_xz ? [x*AU, 0.0, y*AU, 0, 0, 0] : [x*AU, y*AU, 0.0, 0, 0, 0]
-                v = PlasmaVelocity(uvec, input)
-                push!(X, x); push!(Y, y)
-                if is_xz
-                    push!(U, v[1]/1e4 / AU)
-                    push!(V, v[3]/1e4 / AU)
-                else
-                    push!(U, v[1]/1e4 / AU)
-                    push!(V, v[2]/1e4 / AU)
-                end
-            end
-
-            quiver!(plt, X, Y, quiver=(U, V), color=:gray, alpha=0.8, linewidth=0.8, label="Plasma flow")
-        end
-
-        # --- Plot Sun ---
-        if plot_sun
-            scatter!(plt, [0.0], [0.0], markersize=8, color=:yellow, label="Sun")
-        end
-
-        # --- Draw heliopause boundary ---
-        if HeliopauseLine != 0.0
-            if dist_measure == "flat"
-                plot!(plt, [HeliopauseLine/AU, HeliopauseLine/AU], [-boundary_scale, boundary_scale],
-                      color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
-            elseif dist_measure == "spherical"
-                y_arc = range(-boundary_scale, boundary_scale, length=200)
-                x_arc = sqrt.((HeliopauseLine / AU).^2 .- y_arc.^2)
-                plot!(plt, x_arc, y_arc, color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
-            end
-        end
-
-        # --- Magnetic Field Visualization ---
-        y_pos = ydata[1] + 5.0 #25.0
-        u_inside  = [HeliopauseLine - 1.0 * AU, 0.0, 0.0, 0, 0, 0]
-        u_outside = [HeliopauseLine + 1.0 * AU, 0.0, 0.0, 0, 0, 0]
-
-        B_in, B_out = B_field(u_inside, input), B_field(u_outside, input)
-        Bmag_in, Bmag_out = norm(B_in), norm(B_out)
-
-        annotate!(plt, (HeliopauseLine/AU - 7.0, y_pos - 4.0, text("$(round(Bmag_in*1e9, digits=2)) nT", 8, :blue)))
-        annotate!(plt, (HeliopauseLine/AU + 7.0, y_pos - 4.0, text("$(round(Bmag_out*1e9, digits=2)) nT", 8, :green)))
-        annotate!(plt, (HeliopauseLine/AU - 7.0, y_pos + 6.0, text("Heliosphere", 8, :blue)))
-        annotate!(plt, (HeliopauseLine/AU + 7.0, y_pos + 6.0, text("ISM", 8, :green)))        
-
-        if is_xz
-            # --- XZ plane → symbol indicators ---
-            inside_symbol = B_in[2] > 0 ? :x : :circle
-            outside_symbol = B_out[2] > 0 ? :x : :circle
-
-            # Inside
-            if inside_symbol == :x
-                scatter!(plt, [HeliopauseLine/AU - 7.0], [y_pos],
-                        marker=(inside_symbol, 8),
-                        color=:blue,
-                        #markerstrokewidth=1.5,
-                        label="")
-            else
-                scatter!(plt, [HeliopauseLine/AU - 7.0], [y_pos],
-                        marker=(inside_symbol, 8),
-                        markercolor=:white,
-                        markerstrokecolor=:blue,
-                        markerstrokewidth=1.5,
-                        label="")
-            end
-
-            # Outside
-            if outside_symbol == :x
-                scatter!(plt, [HeliopauseLine/AU + 7.0], [y_pos],
-                        marker=(outside_symbol, 8),
-                        color=:green,
-                        #markerstrokewidth=1.5,
-                        label="")
-            else
-                scatter!(plt, [HeliopauseLine/AU + 7.0], [y_pos],
-                        marker=(outside_symbol, 8),
-                        markercolor=:white,
-                        markerstrokecolor=:green,
-                        markerstrokewidth=1.5,
-                        label="")
-            end
-        #end
-
-
-        else
-            # --- XY plane → draw field vectors ---
-            x_B_in, x_B_out = [[HeliopauseLine/AU - 5.0], [HeliopauseLine/AU + 5.0]]
-            y_B_in, y_B_out = [[y_pos], [y_pos]]
-            U_B_in, U_B_out = [[B_in[1]/Bmag_in].* 5, [B_out[1]/Bmag_out].* 5]  
-            V_B_in, V_B_out = [[B_in[2]/Bmag_in].* 5, [B_out[2]/Bmag_out].* 5] 
-
-            quiver!(plt, x_B_in, y_B_in, quiver=(U_B_in, V_B_in),
-                    color=:blue, alpha=0.8, linewidth=1.5, label="Magnetic field (inside)")            
-            quiver!(plt, x_B_out, y_B_out, quiver=(U_B_out, V_B_out),
-                    color=:green, alpha=0.8, linewidth=1.5, label="Magnetic field (outside)") 
-        end
-
-        # --- Final position marker and Q/m label ---
-        scatter!(plt, [xdata[end]], [ydata[end]], color=:black, markersize=5, label="Final position")
-        if params !== nothing
-            annotate!(plt, (xdata[end]-2, ydata[end]-4, text("Q/m = $(round(params[2], sigdigits=4))", 8, :black)))
-        end
-
-        return plt
-    end
-
-    # --- Select projection plane ---
-    if plane == "xz"
-        plt = make_plane_plot(sol_x, sol_z, "x [AU]", "z [AU]", "x–z plane"; is_xz=true)
-    elseif plane == "xy"
-        plt = make_plane_plot(sol_x, sol_y, "x [AU]", "y [AU]", "x–y plane"; is_xz=false)
-    elseif plane == "both"
-        plt_xy = make_plane_plot(sol_x, sol_y, "x [AU]", "y [AU]", "x–y plane"; is_xz=false)
-        plt_xz = make_plane_plot(sol_x, sol_z, "x [AU]", "z [AU]", "x–z plane"; is_xz=true)
-        plt = plot(plt_xy, plt_xz, layout=(2,1), size=(950,900), margin=4Plots.mm)
-    else
-        error("Invalid plane argument. Use \"xz\", \"xy\", or \"both\".")
-    end
-
-    # Save figure if requested 
-    if get(input, "save_fig", false) == true
-        q_over_m = params[2]   # Q/m stored in p = [something, q/m, ...]
-
-        # Timestamp: YYYY-MM-DD-HH-MM
+# Function to save the plot # 
+function save_plot_if_requested(plt, input, params)
+    if get(input, "save_fig", false)
+        q_over_m = params[2]
         date_str = Dates.format(Dates.now(), "yyyy-mm-dd--HH-MM-SS")
-
-        # Build filename: Year-Month-Day-Hour-Min-q_over_m.png
-        fname = "$(date_str)--Qm_$(q_over_m)--$(plasma_model).png"
-
-        # Save under /data relative to project root
+        fname = "$(date_str)--Qm_$(q_over_m)--$(input["plasma_model"])--$(input["B_model"]).png"
         filename = joinpath(@__DIR__, "..", "data", fname)
 
         try
@@ -228,7 +20,299 @@ function PlotTrajectory( sol, input )
             @warn "Failed to save figure" error=e
         end
     end
+end
 
+### --- Main plotting function --- ###
+function Plotter(sol, input; plot_B_fields=true)
+    HeliopauseLine      = input["distance_HP"]
+    TerminationLine     = input["distance_TS"] 
+    params              = input["p"]
+    dist_measure        = input["dist_measure"] 
+    plasma_model        = input["plasma_model"] 
+    B_model             = input["B_model"] 
+    plane               = input["plane"] 
+    #plot_magnetic_field = input["plot_magnetic_field"]  # Define a default     
+    #plot_sun            = input["plot_sun"] #Define a default 
+    #plot_vectors        = input["plot_vectors"] # Define a default 
+    #n_grid              = input["n_grid"]  # Define a default   
+    #plot_color          = input["plot_color"] #Always use speed 
+
+    # First base plot
+    plt_base = SlicePlot(sol, input)
+ 
+    if plot_B_fields
+
+            # Decide what "end" means → final time of solution
+            t_end = input["max_time"]
+
+            plots = [
+                plt_base,
+                plot_B_polarity(input; radius=90, time=t_end, n_x=100, n_t=100, n_z=30, visual_mode="xz"),
+                plot_B_polarity(input; radius=90, time=t_end, n_x=100, n_t=100, n_z=30, visual_mode="tz"),
+                plot_B_polarity(input; radius=50, time=t_end, n_x=100, n_t=100, n_z=30, visual_mode="tz")
+            ]
+
+            layout_def = @layout [
+                a{0.7w} [grid(3,1)]
+            ]
+
+            final_plot = plot(
+                plots...;
+                layout=layout_def,
+                size=(1200, 600),
+                margin=4Plots.mm
+            )
+
+        # Save plot if asked
+        save_plot_if_requested(final_plot, input, params)
+        return final_plot
+    end
+    save_plot_if_requested(plt_base, input, params)
+    return plt_base
+end
+
+
+
+# --- Create a plot of the plane of interest --- #
+function SlicePlot(sol, input)  
+    plane = "xz" #input["plane"] 
+
+    # --- Extract and downsample trajectory ---
+    sol_time = sol.t ./ yr
+    sol_x = [u[1] for u in sol.u] ./ AU
+    sol_y = [u[2] for u in sol.u] ./ AU
+    sol_z = [u[3] for u in sol.u] ./ AU
+    trajectory_duration = (sol_time[end] - sol_time[1])  # in years 
+    sol_speed = [norm(u[4:6]) for u in sol.u] ./ 1e3   # in km/s   
+    npts = length(sol_time)
+    if npts > 1000
+        idx = round.(Int, range(1, npts, length=1000))
+        sol_time = sol_time[idx]
+        sol_x, sol_y, sol_z, sol_speed = sol_x[idx], sol_y[idx], sol_z[idx], sol_speed[idx]
+    end     
+
+    # --- Define the abcissa and ordinate axes data and limits --- 
+    xdata = sol_x 
+    ydata = plane == "xz" ? sol_z : sol_y 
+    x_label = "x [AU]"
+    y_label = plane == "xz" ? "z [AU]" : "y [AU]" 
+    title_text = "Trajectory --- Q/m: $(input["p"][2])\n"  * 
+                "Plasma: $(input["plasma_model"]), B_field: $(input["B_model"]), \n" * 
+                "Duration: $(round(trajectory_duration,digits=3)) yr"
+
+    input["xleft"] =  minimum( [70, minimum(xdata)-9] )
+    input["xright"] = minimum( [130, maximum(xdata)+9] ) 
+    input["ybottom"] =  minimum(ydata)-12
+    input["ytop"] = maximum(ydata)+12                
+
+    xleft, xright = ( minimum( [70, minimum(xdata)-9] ), minimum( [130, maximum(xdata)+9] ) ) #(70, 120)
+    ybottom, ytop = ( minimum(ydata)-12, maximum(ydata)+12 ) #(-90, 90) 
+
+    # --- Define and return the plot --- 
+    plt = Plots.plot(
+        xdata, ydata, linez = sol_speed, linewidth = 1.5, color = :plasma, colorbar = :true, colorbar_title = "Speed [km/s]",
+        xlabel = x_label, ylabel = y_label, title = title_text, size = (900, 600), legend = false, grid = true,
+        gridlinewidth = 2, margin = 2Plots.mm, alpha = 0.95,
+        xlims = (xleft, xright),  ylims = (ybottom, ytop), 
+        titlefont=10, guidefont=8, tickfont=8 )
+
+    # --- Final position marker and Q/m label ---
+    scatter!(plt, [xdata[end]], [ydata[end]], color=:black, markersize=5)
+    #if params !== nothing
+    #    annotate!(plt, (xdata[end]-2, ydata[end]-4, text("Q/m = $(round(params[2], sigdigits=4))", 8, :black)))
+    #end
+
+    # --- Plot Plasma Field --- 
+    is_xz =  plane == "xz" ? true : false 
+    Plasma!(plt, input; plot_vectors=input["plot_vectors"], n_grid=20, is_xz=is_xz)  
+
+    # --- Plot the boundary lines --- 
+    BoundaryLines!(plt, input; boundary_scale=0.95)
+
+    return plt  
+end 
+
+
+# --- Plot the plasma velocity field --- # 
+function Plasma!(plt, input; plot_vectors=true, n_grid=20, is_xz=false)
+    if !plot_vectors
+        return plt
+    end
+    # Bounds 
+    xgrid = range(input["xleft"], input["xright"], length=n_grid)
+    ygrid = range(input["ybottom"], input["ytop"], length=n_grid)
+    X = Float64[]; Y = Float64[]; U = Float64[]; V = Float64[]
+    for x in xgrid, y in ygrid
+        uvec = is_xz ?
+            [x*AU, 0.0, y*AU, 0.0, 0.0, 0.0] :
+            [x*AU, y*AU, 0.0, 0.0, 0.0, 0.0]
+        v = PlasmaVelocity(uvec, input)
+        push!(X, x)
+        push!(Y, y)
+        if is_xz
+            push!(U, v[1]/1e4 / AU)
+            push!(V, v[3]/1e4 / AU)
+        else
+            push!(U, v[1]/1e4 / AU)
+            push!(V, v[2]/1e4 / AU)
+        end
+    end
+    quiver!( plt, X, Y, quiver=(U, V), color=:gray, alpha=0.8, linewidth=0.8, label="Plasma flow" ) 
+    return plt
+end
+
+
+# --- Plot the boundary lines --- # 
+function BoundaryLines!(plt, input; boundary_scale=0.95)
+    dist_measure = input["dist_measure"]
+    HeliopauseLine = input["distance_HP"] /AU
+    TerminationLine = input["distance_TS"] /AU
+
+    # --- Draw Heliopause Boundary ---
+    if HeliopauseLine != 0.0
+        ylim_HP = boundary_scale * HeliopauseLine
+        if dist_measure == "flat"
+            plot!(plt, [HeliopauseLine, HeliopauseLine], [-ylim_HP, ylim_HP],
+                    color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
+        elseif dist_measure == "spherical"
+            y_arc = range(-ylim_HP, ylim_HP, length=200)
+            x_arc = sqrt.((HeliopauseLine).^2 .- y_arc.^2)
+            plot!(plt, x_arc, y_arc, color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
+        end
+    end
+
+    # --- Draw Termination Shock Line --- 
+    if TerminationLine != 0.0
+        ylim_TS = boundary_scale * TerminationLine
+        if dist_measure == "flat"
+            plot!(plt, [TerminationLine, TerminationLine], [-ylim_TS, ylim_TS],
+                    color=:green, linewidth=2, linestyle=:solid, label="Termination")
+        elseif dist_measure == "spherical"
+            y_arc = range(-ylim_TS, ylim_TS, length=200)
+            x_arc = sqrt.((TerminationLine).^2 .- y_arc.^2)
+            plot!(plt, x_arc, y_arc, color=:green, linewidth=2, linestyle=:solid, label="Termination")
+        end
+    end 
 
     return plt 
-end 
+end     
+
+
+
+### --- Plot the magnetic fields over time and space --- ### 
+
+# --- Helper functions --- 
+flat_polarity(B_vector) = sign(B_vector[2])
+
+spherical_polarity(u, B_vector) = begin
+    phi = atan(u[2], u[1])
+    e_phi = [-sin(phi), cos(phi), 0.0]
+    sign(dot(B_vector, e_phi))
+end
+
+# --- Calculate magnetic field polarity over regimes of interest --- 
+function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mode="tz")
+
+    @assert haskey(input, "min_time") && haskey(input, "max_time")
+
+    if visual_mode == "tz"
+        xspan = range(input["min_time"], input["max_time"], n_t) #time axis
+        yspan = range(-30, 30, n_z) #z axis
+    elseif visual_mode == "xz"
+        xspan = range(50, 110, n_x) #x axis
+        #println("xspan[end]: ", xspan[end])
+        yspan = range(-20, 20, n_z) #z axis 
+    else 
+        error("visual_mode not recognised")
+    end 
+
+    B_pol = zeros(length(xspan), length(yspan))
+
+    if visual_mode == "tz"
+        for (i, x) in enumerate(xspan)
+            for (j, y) in enumerate(yspan)
+                #println("\n x=$(x) and y=$(y)")
+                u = [radius*AU, 0.0, y*AU, 0.0, 0.0, 0.0]
+                B_vector = B_field(u, input; t=x)
+                #println("B_vector: $(B_vector)")
+                if input["dist_measure"] == "flat"
+                    pol = flat_polarity(B_vector)
+                    B_pol[i,j] = pol
+                    #println("B pol: $(pol)")
+                else 
+                    pol = spherical_polarity(u, B_vector)
+                    B_pol[i,j] = pol 
+                    #println("B pol: $(pol)")
+                end 
+            end
+        end
+    elseif visual_mode == "xz"
+        for (i, x) in enumerate(xspan)
+            for (j, y) in enumerate(yspan)
+                #println("\n x=$(x) and y=$(y)")
+                u = [x*AU, 0.0, y*AU, 0.0, 0.0, 0.0]
+                B_vector = B_field(u, input; t=time)
+                #println("B_vector: $(B_vector)")
+                if input["dist_measure"] == "flat"
+                    pol = flat_polarity(B_vector)
+                    B_pol[i,j] = pol
+                    #println("B pol: $(pol)")
+                else 
+                    pol = spherical_polarity(u, B_vector)
+                    B_pol[i,j] = pol 
+                    #println("B pol: $(pol)")
+                end 
+            end
+        end
+    end 
+    return xspan, yspan, B_pol 
+end
+
+# --- Plot the magnetic field plot --- # 
+function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20, visual_mode="tz")
+    if time == "end"
+        time_val = Float64(input["max_time"])
+    elseif time == "start" 
+        time_val = Float64(input["min_time"]) 
+    elseif typeof(time) <: Union{Float64, Float32, Int} 
+        time_val = time 
+    else 
+        time_val = 0.0
+    end 
+
+    # Create the data # Outputs: time in seconds, x in AU, z in AU. 
+    xvalues, yvalues, Bpolarities = B_data(input; radius=radius, time=time_val, n_x=n_x, n_t=n_t, n_z=n_z, visual_mode=visual_mode)
+
+    # Flatten the grids 
+    if visual_mode == "tz"
+        xvec = repeat(xvalues ./ yr, outer=length(yvalues)) # outer loop 
+        yvec = repeat(yvalues, inner=length(xvalues)) # inner loop 
+        polvec = vec(Bpolarities)    
+    elseif visual_mode == "xz"
+        xvec = repeat(xvalues, outer=length(yvalues))
+        yvec = repeat(yvalues, inner=length(xvalues))  
+        polvec = vec(Bpolarities) 
+    end 
+
+    #println("Start and end of xvec: $(xvec[1]) and $(xvec[end])")
+
+    # Labels 
+    x_label = visual_mode == "tz" ? "Time [yr]" : "x [AU]"
+    y_label = visual_mode == "tz" ? "z [AU]" : "z [AU]"  
+    title_string = "B_field polarity - Model: $(input["B_model"]); "
+    #println("vis mode: ", visual_mode)
+    title_append = visual_mode == "tz" ? "Radius: $(radius) AU" : "Time $(time_val / yr) yr"
+    title_string *= title_append 
+    
+    # Map polarity to colors: -1 → blue, +1 → red
+    colors = map(ccc -> ccc == 1 ? :red : :blue, polvec) 
+    
+    plt = Plots.scatter(
+        xvec, yvec, c = colors, ms=3.5, markerstrokecolor=:black, markerstrokewidth=0.5,
+        xlabel=x_label, ylabel=y_label, title=title_string, legend=false, colorbar=:true, margin = 2Plots.mm, 
+        titlefont=8, guidefont=6, tickfont=6
+    ) 
+    return plt 
+end
+
+

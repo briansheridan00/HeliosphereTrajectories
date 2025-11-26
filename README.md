@@ -2,10 +2,10 @@
 
 # Heliosphere Trajectories 
 
-Julia code to investigate the trajectories of interstellar dust particles through the solar system. Particular focus on the influence of the heliopuase, heliosheath and termination hsock on the scattering and filtering of dust trajectories. 
+Julia code to investigate the trajectories of interstellar dust particles through the solar system. Particular focus on the influence of the heliopause, heliosheath, and termination shock on the scattering and filtering of dust particles. 
 
 
 Work carried out within the Astrodust group of Dr. Veerle Sterken at ETH Zürich.  
 
 
-Last updated: 18.11.2025
+Last updated: 26.11.2025

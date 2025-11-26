@@ -1,39 +1,53 @@
+# --- Set up parameters --- # 
+
+# Please remember to convert the units for distances and times 
+#   in the toml to dictionary unitility function in utils.jl.
+
+
+### Physical setup characteristics  
 distance_HP = 100.0
 distance_TS = 80.0
 
 B_mag_Heliopause = 0.15e-9
 B_mag_ISM = 0.6e-9
-B_direction_Heliopause = 1.0
 
 ISM_plasma_velocity = 26000.0
 Heliosheath_plasma_velocity = 100000.0
-Inner_Solar_system_velocity = 400000.0
+Termination_plasma_velocity = 400000.0
 
 distance_Turning = 5.0
+distance_Approach = 15.0 
 
+
+### Geometry considerations 
 mode = "full"
-dist_measure = "flat"
-plasma_model = "straight_straight"
+dist_measure = "spherical" #"spherical"
+plasma_model = "turning_turning"
+B_direction_Heliopause = 1.0
+B_model = "solar_max" #"constant"
 
 
+### Trajectory and integration information
 x0_position = 110.0 
 y0_position = 0.0
-z0_position = 1.0 
+z0_position = 2.0 
 
 alpha_angle = 180.0
 beta_angle = 0.0 
 
 min_time = 0.0
-max_time = 7.0
-dt = 1200.0 
+max_time = 7.0  
+dt = 5000.0 
 
 beta_value = 1.0
-q_over_m_value = 5.0 
+q_over_m_value = 500.0 
 
 
-plane = "xz" 
+### Plotting arguments 
+plane = "both" 
 plot_sun = false 
 plot_vectors = true 
+plot_magnetic_field = true  
 n_grid = 20 
 plot_color = "speed"
-save_fig = false  
+save_fig = false   

@@ -3,7 +3,9 @@ using LinearAlgebra
 include(joinpath(@__DIR__, "constants.jl"))
 
 
-# --- Trajectory functions --- # 
+
+### --- Physics functions --- ###
+
 # Function to calculate the norm of the position vector. 
 function rnorm_func(u, input) 
     """ 
@@ -21,9 +23,21 @@ function rnorm_func(u, input)
     end 
 end 
 
+# Calculate the Q/m value from particle and environment parameters. 
+function calculate_qm(voltage, density, radius) # Input units: [Volts, g/cm^3, nm] 
+    e0 = 8.854188e-12        # Permittivity of free space. 
+    U = voltage              # Voltage: in V. 
+    rho = density * 1000     # Density: from g/cm^3 to kg/m^3. 
+    rad = radius * 1e-9      # Radius: from nm to m. 
+    qm = (3 * e0 * U) / (rho * rad^2) 
+    return qm 
+end 
 
 
-# --- Julia convenience functions --- #
+
+### --- Julia convenience functions --- ###
+
+# Read a toml file and load the parameters as a Dict. Adjust parameter values if necessary. 
 function load_parameters(path::String)
     """ 
     Load a TOML parameter file and return a nested Dict.
@@ -36,6 +50,7 @@ function load_parameters(path::String)
     config["distance_HP"] *= AU 
     config["distance_TS"] *= AU 
     config["distance_Turning"] *= AU  
+    config["distance_Approach"] *= AU 
     
     config["r0"] = [ config["x0_position"], config["y0_position"], config["z0_position"] ] .* AU  
     config["x0_position"] *= AU
@@ -50,8 +65,6 @@ function load_parameters(path::String)
     return config
 end
 
-
-
 # Function to flatten nested dicts into key-value pairs with hierarchical keys
 function flatten_dict(d::Dict, prefix::String="")
     rows = []
@@ -65,6 +78,7 @@ function flatten_dict(d::Dict, prefix::String="")
     end
     return rows
 end
+
 # Function to print in a multi-column table
 function pretty_print_table(d::Dict; ncols::Int=2)
     rows = flatten_dict(d)
@@ -83,17 +97,3 @@ function pretty_print_table(d::Dict; ncols::Int=2)
     end
 end 
 
-
-
-function pretty_print_dict_old(d::Dict; indent::Int=0)
-    prefix = " " ^ indent
-    for (k, v) in d
-        if isa(v, Dict)
-            println("$prefix$k = {")
-            pretty_print_dict(v; indent=indent+4)
-            println("$prefix}")
-        else
-            println("$prefix$k = $v")
-        end
-    end
-end
