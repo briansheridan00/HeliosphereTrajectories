@@ -217,7 +217,7 @@ function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mod
 
     if visual_mode == "tz"
         xspan = range(input["min_time"], input["max_time"], n_t) #time axis
-        yspan = range(-30, 30, n_z) #z axis
+        yspan = range(-20, 20, n_z) #z axis
     elseif visual_mode == "xz"
         xspan = range(50, 110, n_x) #x axis
         #println("xspan[end]: ", xspan[end])

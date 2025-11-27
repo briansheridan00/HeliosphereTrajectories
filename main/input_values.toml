@@ -1,7 +1,8 @@
 # --- Set up parameters --- # 
 
 # Please remember to convert the units for distances and times 
-#   in the toml to dictionary unitility function in utils.jl.
+#   in the toml to dictionary utility function in utils.jl 
+#   when adding a new distance or time variable. 
 
 
 ### Physical setup characteristics  

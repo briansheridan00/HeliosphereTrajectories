@@ -16,5 +16,6 @@ input_dict = load_parameters(input_file_path)
 # Compute trajectory. 
 sol = ComputeTrajectory( input_dict )
 
-# Plot the trajectory by executing the function. 
-PlotTrajectory( sol, input_dict ) 
+# Plot the trajectory by executing the function.  
+Plotter(sol, input_dict; plot_B_fields=true)
+

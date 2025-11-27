@@ -19,27 +19,20 @@ function EqMotion!(du, u, p, t, input)
     mode = input["mode"]
     beta, q_over_m = input["p"] # p consists of the input parameters 
 
-    # Positions and velocities contained within u. 
+    # --- Positions and velocities contained within u. ---
     du[1:3] = u[4:6] 
 
-    # Return updated acceleration equations 
+    # --- Return updated acceleration equations ---
     if mode == "reduced" # Just Gravity 
         rnorm = norm(u[1:3]) # Always have spherical rnorm for gravity. 
-        du[4:6] = - (GM_Sun / rnorm^3) .* u[1:3] 
-        #du[4] = - (GM_Sun / rnorm^3) * u[1] 
-        #du[5] = - (GM_Sun / rnorm^3) * u[2] 
-        #du[6] = - (GM_Sun / rnorm^3) * u[3]  
-        #du[4], du[5], du[6] = GravityForce(u)
+        du[4:6] = - (GM_Sun / rnorm^3) .* u[1:3]  
 
     elseif mode == "full" # Gravity, Solar Radiation Pressure, and Lorentz Force 
         v_rel = u[4:6] - PlasmaVelocity(u, input) 
         B = B_field(u, input; t=t) 
         rnorm = norm(u[1:3]) # Always have spherical rnorm for gravity. 
         a_Gravity_SRP = - ((1 - beta) * GM_Sun / rnorm^3) .* u[1:3] 
-        a_Lorentz = q_over_m .* cross(v_rel, B) 
-        #du[4] = forces_prefactor .* u[1] + q_over_m .* cross_v_B[1]
-        #du[5] = forces_prefactor .* u[2] + q_over_m .* cross_v_B[2]
-        #du[6] = forces_prefactor .* u[3] + q_over_m .* cross_v_B[3] 
+        a_Lorentz = q_over_m .* cross(v_rel, B)  
         du[4:6] = a_Gravity_SRP + a_Lorentz 
 
     else # Error for invalid mode
@@ -63,7 +56,7 @@ function ComputeTrajectory(input)
     vy0 = v_mag * cos(beta_angle) * sin(alpha_angle)
     vz0 = v_mag * sin(beta_angle)
 
-    # --- Assemble initial condition ---
+    # --- Assemble initial conditions ---
     r0 = input["r0"] 
     u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0]
 
