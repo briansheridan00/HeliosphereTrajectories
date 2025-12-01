@@ -43,14 +43,25 @@ function Plotter(sol, input; plot_B_fields=true)
     if plot_B_fields
 
             # Decide what "end" means → final time of solution
+            t_start = input["min_time"]
             t_end = input["max_time"]
+            t_mid = (t_end - t_start) / 2.0 
+            t_other = 4.5 * (t_end - t_start) / 5.0 
+            t_other2 = 1.0 * (t_end - t_start) / 22.0 
+            nx, nt, nza, nzb = [180, 200, 30, 30]
 
+            #plots = [
+            #    plt_base,
+            #    plot_B_polarity(input; radius=90, time=t_end, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
+            #    plot_B_polarity(input; radius=90, time=t_end, n_x=nx, n_t=nt, n_z=nzb, visual_mode="tz", msize=2),
+            #    plot_B_polarity(input; radius=50, time=t_end, n_x=nx, n_t=nt, n_z=nzb, visual_mode="tz", msize=2)
+            #]
             plots = [
                 plt_base,
-                plot_B_polarity(input; radius=90, time=t_end, n_x=100, n_t=100, n_z=30, visual_mode="xz"),
-                plot_B_polarity(input; radius=90, time=t_end, n_x=100, n_t=100, n_z=30, visual_mode="tz"),
-                plot_B_polarity(input; radius=50, time=t_end, n_x=100, n_t=100, n_z=30, visual_mode="tz")
-            ]
+                plot_B_polarity(input; radius=90, time=t_start, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
+                plot_B_polarity(input; radius=90, time=t_mid, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
+                plot_B_polarity(input; radius=50, time=t_other , n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5)
+            ] 
 
             layout_def = @layout [
                 a{0.7w} [grid(3,1)]
@@ -59,7 +70,7 @@ function Plotter(sol, input; plot_B_fields=true)
             final_plot = plot(
                 plots...;
                 layout=layout_def,
-                size=(1200, 600),
+                size=(1400, 600),
                 margin=4Plots.mm
             )
 
@@ -96,7 +107,7 @@ function SlicePlot(sol, input)
     ydata = plane == "xz" ? sol_z : sol_y 
     x_label = "x [AU]"
     y_label = plane == "xz" ? "z [AU]" : "y [AU]" 
-    title_text = "Trajectory --- Q/m: $(input["p"][2])\n"  * 
+    title_text = "Trajectory ---> Beta: $(input["p"][1]); Q/m: $(input["p"][2])\n"  * 
                 "Plasma: $(input["plasma_model"]), B_field: $(input["B_model"]), \n" * 
                 "Duration: $(round(trajectory_duration,digits=3)) yr"
 
@@ -129,7 +140,25 @@ function SlicePlot(sol, input)
     # --- Plot the boundary lines --- 
     BoundaryLines!(plt, input; boundary_scale=0.95)
 
+    # --- Plot the sun --- 
+    scatter!(plt, [0], [0], color=:yellow, markerstrokecolor=:black, markersize=5)
+
+    # --- Annotate time steps along trajectory --- 
+    AnnotateTimes!(plt, input, sol_time, xdata, ydata; n_labels=7)
+
     return plt  
+end 
+
+
+# --- Annotate the times along the trajectory --- 
+function AnnotateTimes!(plt, input, sol_time, xdata, ydata; n_labels=7)
+    if input["annotate_times"] == true 
+        idxs = round.(Int, range(1, length(sol_time), length=n_labels))
+        for i in idxs
+            annotate!(plt, (xdata[i], ydata[i]-0.5, text("t: $(round(sol_time[i], digits=2)) yr", 7, :black))) 
+        end 
+    end 
+    return plt 
 end 
 
 
@@ -217,11 +246,11 @@ function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mod
 
     if visual_mode == "tz"
         xspan = range(input["min_time"], input["max_time"], n_t) #time axis
-        yspan = range(-20, 20, n_z) #z axis
+        yspan = range(-35, 35, n_z) #z axis
     elseif visual_mode == "xz"
         xspan = range(50, 110, n_x) #x axis
         #println("xspan[end]: ", xspan[end])
-        yspan = range(-20, 20, n_z) #z axis 
+        yspan = range(-35, 35, n_z) #z axis 
     else 
         error("visual_mode not recognised")
     end 
@@ -269,7 +298,7 @@ function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mod
 end
 
 # --- Plot the magnetic field plot --- # 
-function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20, visual_mode="tz")
+function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20, visual_mode="tz", msize=2.0)
     if time == "end"
         time_val = Float64(input["max_time"])
     elseif time == "start" 
@@ -301,14 +330,15 @@ function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20,
     y_label = visual_mode == "tz" ? "z [AU]" : "z [AU]"  
     title_string = "B_field polarity - Model: $(input["B_model"]); "
     #println("vis mode: ", visual_mode)
-    title_append = visual_mode == "tz" ? "Radius: $(radius) AU" : "Time $(time_val / yr) yr"
+    title_append = visual_mode == "tz" ? "Radius: $(round(radius, digits=2)) AU" : "Time $(round(time_val / yr, digits=2)) yr"
     title_string *= title_append 
     
     # Map polarity to colors: -1 → blue, +1 → red
     colors = map(ccc -> ccc == 1 ? :red : :blue, polvec) 
     
     plt = Plots.scatter(
-        xvec, yvec, c = colors, ms=3.5, markerstrokecolor=:black, markerstrokewidth=0.5,
+        xvec, yvec, c = colors, ms=msize, #2.0, #3.5, 
+        markerstrokecolor=:black, markerstrokewidth=0.5,
         xlabel=x_label, ylabel=y_label, title=title_string, legend=false, colorbar=:true, margin = 2Plots.mm, 
         titlefont=8, guidefont=6, tickfont=6
     ) 

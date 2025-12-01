@@ -33,6 +33,26 @@ function calculate_qm(voltage, radius, density) # Input units: [Volts, nm, g/cm^
     return qm 
 end 
 
+# Angle between two vectors. 
+function VectorAngle(u::AbstractVector, v::AbstractVector)
+    cosinusθ = dot(u, v) / (norm(u) * norm(v))
+    cosθ = clamp(cosinusθ, -1.0, 1.0)
+    return acos(cosθ) * 180.0 / pi 
+end
+
+# Convert a pair of angles to a 3D unit vector. 
+function angle2vector(phi_raw, theta_raw) 
+    phi = phi_raw * pi / 180.0 
+    theta = (90.0 - theta_raw) * pi / 180.0 
+    return [ sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta) ] 
+end 
+
+# Convert a vector direction to a pair of angles. 
+function vector2angle(v)  
+    phi = (sign(v[2]) * acos(v[1] / sqrt(v[1]^2 + v[2]^2))) / pi * 180.0
+    theta = 90.0 - (acos(v[3] / sqrt(v[1]^2 + v[2]^2 + v[3]^2)) / pi * 180.0)
+    return [ phi, theta ] 
+end 
 
 
 ### --- Julia convenience functions --- ###
@@ -59,6 +79,7 @@ function load_parameters(path::String)
 
     config["min_time"] *= yr 
     config["max_time"] *= yr 
+    config["B_field_time_offset"] *= yr 
 
     config["p"] = [config["beta_value"], config["q_over_m_value"]] 
 
