@@ -24,7 +24,6 @@ end
 =#
 
 
-
 # Function to compute the trajectory solution - with keyword arguments. 
 function ComputeTrajectory(input)
     # --- Extract dictionary of dust particle charging data --- 
