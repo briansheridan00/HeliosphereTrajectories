@@ -23,9 +23,7 @@ struct InputParams
 end 
 =#
 
-function save_qm(u, t, integrator)
-    return integrator.p[2]   # q/m stored in parameter vector
-end
+
 
 # Function to compute the trajectory solution - with keyword arguments. 
 function ComputeTrajectory(input)
@@ -40,7 +38,12 @@ function ComputeTrajectory(input)
     qm_constant = input["q_over_m_value"] 
     qm_initial = input["qm_initial"] 
     particle_type = input["particle_type"]
-    particle_size = input["particle_size"]      
+    particle_size = input["particle_size"] 
+    density = particle_type == "carbonaceous" ? 2.5 : 3.3
+
+    # --- Calculate the initial q/m value for the ISM (case of instantaneous charging - no boundary crossed)  
+    v_eq_ism = voltage_at_size(charging_dict, particle_type, "VLISM", particle_size)  
+    qm_ism = calculate_qm(v_eq_ism, particle_size, density) 
 
     # --- Compute angles in radians ---
     alpha_angle = deg2rad( input["alpha_angle"] )
@@ -65,20 +68,23 @@ function ComputeTrajectory(input)
     function affectInstant!(integrator)
         rnorm_val = norm(integrator.u[1:3])  
         region = (rnorm_val ≤ input["distance_TS"]) ? "TerminationShock" : (rnorm_val ≤ input["distance_HP"]) ? "Heliosheath" : "VLISM" 
-        v_eq = voltage_at_size(charging_dict, particle_type, region, particle_size) 
-        density = particle_type == "carbonaceous" ? 2.5 : 3.3 
+        v_eq = voltage_at_size(charging_dict, particle_type, region, particle_size)  
         qm_new = calculate_qm(v_eq, particle_size, density) 
         integrator.p[2] = qm_new # Q/m value  
     end  
 
+    # Empty object to save the charge to mass ratio values. 
     saved_qm = SavedValues(Float64, Float64)
 
+    # Function to push the q/m value to storage. 
     function save_qm(u, t, integrator)
         integrator.p[2]   # q/m in parameters
     end
 
+    # Callback pushing to storage. 
     save_cb = SavingCallback(save_qm, saved_qm) 
 
+    # Define callbak set with value saving to storage. 
     cb = CallbackSet(
         ContinuousCallback(cond_HP, affectInstant!),
         ContinuousCallback(cond_TS, affectInstant!), 
@@ -93,7 +99,7 @@ function ComputeTrajectory(input)
         prob = ODEProblem( (du, u, p, t) -> EqMotionConstant!(du, u, p, t, input), u0, tspan, params )
         sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
     elseif charging_type == "instant"
-        params = [beta_val, qm_initial] 
+        params = [beta_val, qm_ism] #qm_initial] 
         #params = InputParams(mode, beta_val, qm_constant, qm_initial, particle_type, particle_size, charging_dict)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0]
         prob = ODEProblem( (du, u, p, t) -> EqMotionInstant!(du, u, p, t, input), u0, tspan, params )

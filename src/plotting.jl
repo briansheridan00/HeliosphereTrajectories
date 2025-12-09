@@ -416,7 +416,7 @@ function qm_over_time(trajectory_solution, trajectory_qm_values, charging_type)
             xlabel="Time (yr)", ylabel="Q/m",
             size=(800, 250), label="Q/m", margin=5Plots.mm, linewidth=2.5,
             title="Charge to mass ratio – $(charging_type) charging", 
-            ylim=(minimum(trajectory_qm_values)-1, maximum(trajectory_qm_values)+1))
+            ylim=(-0.5, maximum(trajectory_qm_values)+1)) 
 
     return plt 
 end 
