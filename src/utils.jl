@@ -1,7 +1,8 @@
+using Pkg
 using TOML 
 using LinearAlgebra
-include(joinpath(@__DIR__, "constants.jl"))
 
+include(joinpath(@__DIR__, "..", "src", "constants.jl"))
 
 
 ### --- Physics functions --- ###
@@ -21,16 +22,6 @@ function rnorm_func(u, input)
         @warn "Distance measure not recognised - defaulting to flat"
         return u[1] 
     end 
-end 
-
-# Calculate the Q/m value from particle and environment parameters. 
-function calculate_qm(voltage, radius, density) # Input units: [Volts, nm, g/cm^3] 
-    e0 = 8.854188e-12        # Permittivity of free space. 
-    U = voltage              # Voltage: in V. 
-    rho = density * 1000     # Density: convert from g/cm^3 to kg/m^3. 
-    rad = radius * 1e-9      # Radius: convert from nm to m. 
-    qm = (3 * e0 * U) / (rho * rad^2) 
-    return qm 
 end 
 
 # Angle between two vectors. 

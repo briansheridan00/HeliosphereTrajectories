@@ -1,7 +1,7 @@
 # --- Set up parameters --- # 
 
 # Please remember to convert the units for distances and times 
-#   in the toml to dictionary utility function in utils.jl 
+#   in the toml-to-dictionary utility function in utils.jl 
 #   when adding a new distance or time variable. 
 
 
@@ -26,13 +26,13 @@ dist_measure = "spherical"
 plasma_model = "turning_turning"
 B_direction_Heliopause = 1.0
 B_model = "Parker" 
-B_field_time_offset = 7.0 #Time offset in years
+B_field_time_offset = 5.0 #2.0 #Time offset in years
 
 
 ### Trajectory and integration information
 x0_position = 110.0 
 y0_position = 0.0
-z0_position = 2.0 
+z0_position = 10.0 
 
 alpha_angle = 180.0
 beta_angle = 0.0 
@@ -42,7 +42,11 @@ max_time = 13.0
 dt = 7000.0 
 
 beta_value = 1.0
-q_over_m_value = 10.0 
+q_over_m_value = 16.0 
+qm_initial = 0.0 
+particle_type = "silicate"
+particle_size = 50 
+charging_type = "continuous" 
 
 
 ### Plotting arguments 

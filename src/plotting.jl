@@ -5,7 +5,7 @@ using Dates
 include(joinpath(@__DIR__, "constants.jl"))  
 
 
-# Function to save the plot # 
+# Function to save the plot 
 function save_plot_if_requested(plt, input, params)
     if get(input, "save_fig", false)
         q_over_m = params[2]
@@ -22,26 +22,97 @@ function save_plot_if_requested(plt, input, params)
     end
 end
 
+
 ### --- Main plotting function --- ###
-function Plotter(sol, input; plot_B_fields=true)
-    HeliopauseLine      = input["distance_HP"]
-    TerminationLine     = input["distance_TS"] 
-    params              = input["p"]
-    dist_measure        = input["dist_measure"] 
-    plasma_model        = input["plasma_model"] 
-    B_model             = input["B_model"] 
-    plane               = input["plane"] 
-    #plot_magnetic_field = input["plot_magnetic_field"]  # Define a default     
-    #plot_sun            = input["plot_sun"] #Define a default 
-    #plot_vectors        = input["plot_vectors"] # Define a default 
-    #n_grid              = input["n_grid"]  # Define a default   
-    #plot_color          = input["plot_color"] #Always use speed 
+function Plotter(sol, input; plot_B_fields=true, charges=false) 
+    params = input["p"] 
+
+    # Base trajectory plot
+    plt_base = SlicePlot(sol, input)
+
+    # Case 1: No magnetic field plots requested 
+    if !plot_B_fields
+        if charges != false
+            qm_plot = qm_over_time(sol, charges, input["charging_type"])
+            layout_def = @layout [a; b]
+            final_plot = plot(
+                plt_base,
+                qm_plot;
+                layout=layout_def,
+                size=(1200, 650),
+                margin=4Plots.mm
+            )
+            save_plot_if_requested(final_plot, input, params)
+            return final_plot
+        else
+            save_plot_if_requested(plt_base, input, params)
+            return plt_base
+        end
+    end
+
+    # Case 2: Magnetic field plots ARE requested
+
+    # Time values
+    t_start = input["min_time"]
+    t_end   = input["max_time"]
+    t_mid   = (t_end - t_start) / 2.0
+    t_other = 4.5 * (t_end - t_start) / 5.0
+    nx, nt, nza = 150, 170, 25 #180, 200, 30
+
+    # Magnetic field plots
+    plots = [
+        plt_base,
+        plot_B_polarity(input; radius=90, time=t_start, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
+        plot_B_polarity(input; radius=90, time=t_mid,   n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
+        plot_B_polarity(input; radius=50, time=t_other, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5)
+    ]
+
+    # Add Q/m plot if requested
+    if charges != false
+        qm_plot = qm_over_time(sol, charges, input["charging_type"])
+
+        layout_def = @layout [
+            a{0.7w} [grid(3,1)]
+            b{0.3h}
+        ]
+
+        final_plot = plot(
+            plots...,
+            qm_plot;
+            layout=layout_def,
+            size=(1800, 1200),
+            margin=7Plots.mm
+        )
+
+        save_plot_if_requested(final_plot, input, params)
+        return final_plot
+    end
+
+    # If no Q/m plot is added, return only B-field composite
+    layout_def = @layout [
+        a{0.7w} [grid(3,1)]
+    ]
+
+    final_plot = plot(
+        plots...;
+        layout=layout_def,
+        size=(1400, 600),
+        margin=4Plots.mm
+    )
+
+    save_plot_if_requested(final_plot, input, params)
+    return final_plot
+end
+
+
+
+function PlotterOld(sol, input; plot_B_fields=true, charges=false) 
+    params = input["p"] 
 
     # First base plot
     plt_base = SlicePlot(sol, input)
  
     if plot_B_fields
-
             # Decide what "end" means → final time of solution
             t_start = input["min_time"]
             t_end = input["max_time"]
@@ -50,12 +121,6 @@ function Plotter(sol, input; plot_B_fields=true)
             t_other2 = 1.0 * (t_end - t_start) / 22.0 
             nx, nt, nza, nzb = [180, 200, 30, 30]
 
-            #plots = [
-            #    plt_base,
-            #    plot_B_polarity(input; radius=90, time=t_end, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
-            #    plot_B_polarity(input; radius=90, time=t_end, n_x=nx, n_t=nt, n_z=nzb, visual_mode="tz", msize=2),
-            #    plot_B_polarity(input; radius=50, time=t_end, n_x=nx, n_t=nt, n_z=nzb, visual_mode="tz", msize=2)
-            #]
             plots = [
                 plt_base,
                 plot_B_polarity(input; radius=90, time=t_start, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
@@ -107,9 +172,8 @@ function SlicePlot(sol, input)
     ydata = plane == "xz" ? sol_z : sol_y 
     x_label = "x [AU]"
     y_label = plane == "xz" ? "z [AU]" : "y [AU]" 
-    title_text = "Trajectory ---> Beta: $(input["p"][1]); Q/m: $(input["p"][2])\n"  * 
-                "Plasma: $(input["plasma_model"]), B_field: $(input["B_model"]), \n" * 
-                "Duration: $(round(trajectory_duration,digits=3)) yr"
+    title_text = "Trajectory ---> Beta: $(input["beta_value"]); Charging: $(input["charging_type"]);\n" * 
+                "Plasma: $(input["plasma_model"]), B_field: $(input["B_model"]); Duration: $(round(trajectory_duration,digits=3)) yr" 
 
     input["xleft"] =  minimum( [70, minimum(xdata)-9] )
     input["xright"] = minimum( [130, maximum(xdata)+9] ) 
@@ -123,15 +187,12 @@ function SlicePlot(sol, input)
     plt = Plots.plot(
         xdata, ydata, linez = sol_speed, linewidth = 1.5, color = :plasma, colorbar = :true, colorbar_title = "Speed [km/s]",
         xlabel = x_label, ylabel = y_label, title = title_text, size = (900, 600), legend = false, grid = true,
-        gridlinewidth = 2, margin = 2Plots.mm, alpha = 0.95,
+        gridlinewidth = 2, margin = 4Plots.mm, alpha = 0.95,
         xlims = (xleft, xright),  ylims = (ybottom, ytop), 
         titlefont=10, guidefont=8, tickfont=8 )
 
     # --- Final position marker and Q/m label ---
-    scatter!(plt, [xdata[end]], [ydata[end]], color=:black, markersize=5)
-    #if params !== nothing
-    #    annotate!(plt, (xdata[end]-2, ydata[end]-4, text("Q/m = $(round(params[2], sigdigits=4))", 8, :black)))
-    #end
+    scatter!(plt, [xdata[end]], [ydata[end]], color=:black, markersize=5) 
 
     # --- Plot Plasma Field --- 
     is_xz =  plane == "xz" ? true : false 
@@ -244,13 +305,16 @@ function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mod
 
     @assert haskey(input, "min_time") && haskey(input, "max_time")
 
+    x_span_low, x_span_high = (35, 110)
+    y_span_value = 35
+
     if visual_mode == "tz"
         xspan = range(input["min_time"], input["max_time"], n_t) #time axis
-        yspan = range(-35, 35, n_z) #z axis
+        yspan = range(-y_span_value, y_span_value, n_z) #z axis
     elseif visual_mode == "xz"
-        xspan = range(50, 110, n_x) #x axis
+        xspan = range(x_span_low, x_span_high, n_x) #x axis
         #println("xspan[end]: ", xspan[end])
-        yspan = range(-35, 35, n_z) #z axis 
+        yspan = range(-y_span_value, y_span_value, n_z) #z axis 
     else 
         error("visual_mode not recognised")
     end 
@@ -345,4 +409,15 @@ function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20,
     return plt 
 end
 
+
+# --- Charge to mass ratio over time --- 
+function qm_over_time(trajectory_solution, trajectory_qm_values, charging_type)
+    plt = plot(trajectory_solution.t ./ yr, trajectory_qm_values, 
+            xlabel="Time (yr)", ylabel="Q/m",
+            size=(800, 250), label="Q/m", margin=5Plots.mm, linewidth=2.5,
+            title="Charge to mass ratio – $(charging_type) charging", 
+            ylim=(minimum(trajectory_qm_values)-1, maximum(trajectory_qm_values)+1))
+
+    return plt 
+end 
 

@@ -8,4 +8,29 @@ Julia code to investigate the trajectories of interstellar dust particles throug
 Work carried out within the Astrodust group of Dr. Veerle Sterken at ETH Zürich.  
 
 
-Last updated: 01.12.2025
+### Requirements
+- Julia 
+- TOML.jl 
+- DifferentialEquations.jl
+- Interpolations.jl
+- Plots.jl 
+- JLD2.jl
+- FileIO.jl  
+
+
+### Installation
+
+Clone the repository and instantiate the environment:
+
+```bash
+git clone https://github.com/briansheridan00/HeliosphereTrajectories.git
+cd HeliosphereTrajectories
+julia --project=.
+```
+
+Inside the Julia REPL, activate and instantiate the environment: 
+
+```julia
+julia> ] activate .
+julia> ] instantiate 
+```
