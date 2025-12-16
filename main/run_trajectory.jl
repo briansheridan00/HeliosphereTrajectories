@@ -10,12 +10,13 @@ include( joinpath(@__DIR__, "..", "src", "plasma_field.jl") )
 include( joinpath(@__DIR__, "..", "src", "plotting.jl") ) 
 include( joinpath(@__DIR__, "..", "src", "trajectory.jl") ) 
 
+# Import the input file with parameters. 
 input_file_path = joinpath(@__DIR__, "..", "main", "input_values.toml") 
 input_dict = load_parameters(input_file_path) 
 
 # Compute trajectory. 
-sol = ComputeTrajectory( input_dict )
+sol, saved_charges = ComputeTrajectory( input_dict )
 
 # Plot the trajectory by executing the function.  
-Plotter(sol, input_dict; plot_B_fields=true)
+Plotter(sol, input_dict; plot_B_fields=true, charges=saved_charges)
 

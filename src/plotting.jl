@@ -216,7 +216,7 @@ function AnnotateTimes!(plt, input, sol_time, xdata, ydata; n_labels=7)
     if input["annotate_times"] == true 
         idxs = round.(Int, range(1, length(sol_time), length=n_labels))
         for i in idxs
-            annotate!(plt, (xdata[i], ydata[i]-0.5, text("t: $(round(sol_time[i], digits=2)) yr", 7, :black))) 
+            annotate!(plt, (xdata[i], ydata[i]-1.0, text("t: $(round(sol_time[i], digits=2)) yr", 7, :black))) 
         end 
     end 
     return plt 

@@ -64,14 +64,6 @@ function ComputeTrajectory(input)
     cond_HP(u,t,integrator) = norm(u[1:3]) - input["distance_HP"]
     cond_TS(u,t,integrator) = norm(u[1:3]) - input["distance_TS"]  
 
-    function affectInstant!(integrator)
-        rnorm_val = norm(integrator.u[1:3])  
-        region = (rnorm_val ≤ input["distance_TS"]) ? "TerminationShock" : (rnorm_val ≤ input["distance_HP"]) ? "Heliosheath" : "VLISM" 
-        v_eq = voltage_at_size(charging_dict, particle_type, region, particle_size)  
-        qm_new = calculate_qm(v_eq, particle_size, density) 
-        integrator.p[2] = qm_new # Q/m value  
-    end  
-
     # Empty object to save the charge to mass ratio values. 
     saved_qm = SavedValues(Float64, Float64)
 
@@ -83,12 +75,51 @@ function ComputeTrajectory(input)
     # Callback pushing to storage. 
     save_cb = SavingCallback(save_qm, saved_qm) 
 
-    # Define callbak set with value saving to storage. 
-    cb = CallbackSet(
-        ContinuousCallback(cond_HP, affectInstant!),
-        ContinuousCallback(cond_TS, affectInstant!), 
-        save_cb 
-    ) 
+    # Affect functions for the instantaneous callbacks. Directionality included. 
+    function affect_HP_up!(integrator)
+        # r went negative→positive → we are going outward
+        v_eq = voltage_at_size(charging_dict, particle_type, "VLISM", particle_size)
+        new_qm = calculate_qm(v_eq, particle_size, density)
+        integrator.p[2] = new_qm 
+        println("Affect triggered at $(round(norm(integrator.u[1:3]) / AU, digits=3)) AU. New Q/m of $(round(new_qm, digits=3))")
+    end
+
+    function affect_HP_down!(integrator)
+        # r went positive→negative → we are going inward
+        v_eq = voltage_at_size(charging_dict, particle_type, "Heliosheath", particle_size)
+        new_qm = calculate_qm(v_eq, particle_size, density)
+        integrator.p[2] = new_qm
+        #println("Entering Heliosheath at $(norm(integrator.u[1:3]) / AU) AU")
+        println("Affect triggered at $(round(norm(integrator.u[1:3]) / AU, digits=3)) AU. New Q/m of $(round(new_qm, digits=3))")
+    end
+
+    function affect_TS_up!(integrator)
+        # outward through TS
+        v_eq = voltage_at_size(charging_dict, particle_type, "Heliosheath", particle_size)
+        new_qm = calculate_qm(v_eq, particle_size, density)
+        integrator.p[2] = new_qm 
+        println("Affect triggered at $(round(norm(integrator.u[1:3]) / AU, digits=3)) AU. New Q/m of $(round(new_qm, digits=3))")
+    end
+
+    function affect_TS_down!(integrator)
+        # inward through TS
+        v_eq = voltage_at_size(charging_dict, particle_type, "TerminationShock", particle_size)
+        new_qm = calculate_qm(v_eq, particle_size, density)
+        integrator.p[2] = new_qm 
+        println("Affect triggered at $(round(norm(integrator.u[1:3]) / AU, digits=3)) AU. New Q/m of $(round(new_qm, digits=3))")
+    end
+
+    # Define the continuous callback sets, including the callback saving. 
+    cb_HP = ContinuousCallback(cond_HP,
+                            affect_HP_up!,   # for upcrossings
+                            affect_HP_down!) # for downcrossings
+
+    cb_TS = ContinuousCallback(cond_TS,
+                            affect_TS_up!,
+                            affect_TS_down!)
+
+    cb = CallbackSet(cb_HP, cb_TS, save_cb)
+
 
     # --- Define ODE problem and solve --- 
     if charging_type == "constant"
@@ -97,21 +128,25 @@ function ComputeTrajectory(input)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0] 
         prob = ODEProblem( (du, u, p, t) -> EqMotionConstant!(du, u, p, t, input), u0, tspan, params )
         sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
+
     elseif charging_type == "instant"
         params = [beta_val, qm_ism] #qm_initial] 
         #params = InputParams(mode, beta_val, qm_constant, qm_initial, particle_type, particle_size, charging_dict)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0]
         prob = ODEProblem( (du, u, p, t) -> EqMotionInstant!(du, u, p, t, input), u0, tspan, params )
         sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"]; callback = cb)
+
     elseif charging_type == "continuous"
         params = (beta_val, particle_type, particle_size)
         #params = InputParams(mode, beta_val, qm_constant, qm_initial, particle_type, particle_size, charging_dict)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0, qm_initial]
         prob = ODEProblem( (du, u, p, t) -> EqMotionContinuous!(du, u, p, t, input, charging_dict), u0, tspan, params )
         sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
+
     else 
         error("Charging type not recognised")
     end 
+
 
     # --- Display summary ---
     println("--- Solution Characteristics ---")
