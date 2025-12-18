@@ -263,11 +263,13 @@ function BoundaryLines!(plt, input; boundary_scale=0.95)
         ylim_HP = boundary_scale * HeliopauseLine
         if dist_measure == "flat"
             plot!(plt, [HeliopauseLine, HeliopauseLine], [-ylim_HP, ylim_HP],
-                    color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
+                    # color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
+                    color=:red, linewidth=2, linestyle=:solid, label="")
         elseif dist_measure == "spherical"
             y_arc = range(-ylim_HP, ylim_HP, length=200)
             x_arc = sqrt.((HeliopauseLine).^2 .- y_arc.^2)
-            plot!(plt, x_arc, y_arc, color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
+            # plot!(plt, x_arc, y_arc, color=:red, linewidth=2, linestyle=:solid, label="Heliopause")
+            plot!(plt, x_arc, y_arc, color=:red, linewidth=2, linestyle=:solid, label="")
         end
     end
 
@@ -276,11 +278,13 @@ function BoundaryLines!(plt, input; boundary_scale=0.95)
         ylim_TS = boundary_scale * TerminationLine
         if dist_measure == "flat"
             plot!(plt, [TerminationLine, TerminationLine], [-ylim_TS, ylim_TS],
-                    color=:green, linewidth=2, linestyle=:solid, label="Termination")
+                    # color=:green, linewidth=2, linestyle=:solid, label="Termination")
+                    color=:green, linewidth=2, linestyle=:solid, label="")
         elseif dist_measure == "spherical"
             y_arc = range(-ylim_TS, ylim_TS, length=200)
             x_arc = sqrt.((TerminationLine).^2 .- y_arc.^2)
-            plot!(plt, x_arc, y_arc, color=:green, linewidth=2, linestyle=:solid, label="Termination")
+            # plot!(plt, x_arc, y_arc, color=:green, linewidth=2, linestyle=:solid, label="Termination")
+            plot!(plt, x_arc, y_arc, color=:green, linewidth=2, linestyle=:solid, label="")
         end
     end 
 

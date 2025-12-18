@@ -127,21 +127,34 @@ function ComputeTrajectory(input)
         #params = InputParams(mode, beta_val, qm_constant, qm_initial, particle_type, particle_size, charging_dict)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0] 
         prob = ODEProblem( (du, u, p, t) -> EqMotionConstant!(du, u, p, t, input), u0, tspan, params )
-        sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
+        # sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
+        tol = 1e-10
+        abstol_vec = @SVector [tol*1e-6*AU,   tol*1e-6*AU,   tol*1e-6*AU,
+                               tol*1e-6*km_s, tol*1e-6*km_s, tol*1e-6*km_s]
+        sol = solve(prob, BS3(), reltol=tol, abstol=abstol_vec, dtmax=1*day_value, dtmin=1e-7, force_dtmin=true)
 
     elseif charging_type == "instant"
         params = [beta_val, qm_ism] #qm_initial] 
         #params = InputParams(mode, beta_val, qm_constant, qm_initial, particle_type, particle_size, charging_dict)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0]
         prob = ODEProblem( (du, u, p, t) -> EqMotionInstant!(du, u, p, t, input), u0, tspan, params )
-        sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"]; callback = cb)
+        # sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"]; callback = cb)
+        tol = 1e-10
+        abstol_vec = @SVector [tol*1e-6*AU,   tol*1e-6*AU,   tol*1e-6*AU,
+                               tol*1e-6*km_s, tol*1e-6*km_s, tol*1e-6*km_s]
+        sol = solve(prob, BS3(), reltol=tol, abstol=abstol_vec, dtmax=1*day_value, dtmin=1e-7, force_dtmin=true, callback = cb)
 
     elseif charging_type == "continuous"
         params = (beta_val, particle_type, particle_size)
         #params = InputParams(mode, beta_val, qm_constant, qm_initial, particle_type, particle_size, charging_dict)
         u0 = [r0[1], r0[2], r0[3], vx0, vy0, vz0, qm_initial]
         prob = ODEProblem( (du, u, p, t) -> EqMotionContinuous!(du, u, p, t, input, charging_dict), u0, tspan, params )
-        sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
+        # sol = solve(prob, Vern9(), adaptive=false, dt = input["dt"])
+        tol = 1e-10
+        abstol_vec = @SVector [tol*1e-6*AU,   tol*1e-6*AU,   tol*1e-6*AU,
+                               tol*1e-6*km_s, tol*1e-6*km_s, tol*1e-6*km_s,
+                               tol]
+        sol = solve(prob, BS3(), reltol=tol, abstol=abstol_vec, dtmax=1*day_value, dtmin=1e-7, force_dtmin=true)
 
     else 
         error("Charging type not recognised")
