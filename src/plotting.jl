@@ -24,7 +24,7 @@ end
 
 
 ### --- Main plotting function --- ###
-function Plotter(sol, input; plot_B_fields=true, charges=false) 
+function Plotter(sol, input; plot_B_fields=true, charges=false, n_density=300) 
     params = input["p"] 
 
     # Base trajectory plot
@@ -57,30 +57,34 @@ function Plotter(sol, input; plot_B_fields=true, charges=false)
     t_end   = input["max_time"]
     t_mid   = (t_end - t_start) / 2.0
     t_other = 4.5 * (t_end - t_start) / 5.0
-    nx, nt, nza = 150, 170, 25 #180, 200, 30
+    nx, nt, nza = fill(n_density, 3) #150, 170, 25 #180, 200, 30
+    xspr = (0.1, 105)
+    yspr = xspr[2] - xspr[1]
 
     # Magnetic field plots
     plots = [
         plt_base,
-        plot_B_polarity(input; radius=90, time=t_start, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
-        plot_B_polarity(input; radius=90, time=t_mid,   n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
-        plot_B_polarity(input; radius=50, time=t_other, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5)
+        plot_B_polarity(input; radius=90.0, time=t_start, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", xspan_range=xspr),
+        plot_B_polarity(input; radius=90.0, time=t_mid,   n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", xspan_range=xspr),
+        plot_B_polarity(input; radius=50.0, time=t_other, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", xspan_range=xspr)
     ]
 
     # Add Q/m plot if requested
     if charges != false
         qm_plot = qm_over_time(sol, charges, input["charging_type"])
+        bp_plot = Bfield_over_time(sol, input)
 
         layout_def = @layout [
             a{0.7w} [grid(3,1)]
-            b{0.3h}
+            b{0.15h} c{0.15h}
         ]
 
         final_plot = plot(
             plots...,
-            qm_plot;
+            qm_plot,
+            bp_plot;
             layout=layout_def,
-            size=(1800, 1200),
+            size=(1600, 1200),
             margin=7Plots.mm
         )
 
@@ -96,57 +100,13 @@ function Plotter(sol, input; plot_B_fields=true, charges=false)
     final_plot = plot(
         plots...;
         layout=layout_def,
-        size=(1400, 600),
+        size=(1400, 1200),
         margin=4Plots.mm
     )
 
     save_plot_if_requested(final_plot, input, params)
     return final_plot
 end
-
-
-
-function PlotterOld(sol, input; plot_B_fields=true, charges=false) 
-    params = input["p"] 
-
-    # First base plot
-    plt_base = SlicePlot(sol, input)
- 
-    if plot_B_fields
-            # Decide what "end" means → final time of solution
-            t_start = input["min_time"]
-            t_end = input["max_time"]
-            t_mid = (t_end - t_start) / 2.0 
-            t_other = 4.5 * (t_end - t_start) / 5.0 
-            t_other2 = 1.0 * (t_end - t_start) / 22.0 
-            nx, nt, nza, nzb = [180, 200, 30, 30]
-
-            plots = [
-                plt_base,
-                plot_B_polarity(input; radius=90, time=t_start, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
-                plot_B_polarity(input; radius=90, time=t_mid, n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5),
-                plot_B_polarity(input; radius=50, time=t_other , n_x=nx, n_t=nt, n_z=nza, visual_mode="xz", msize=4.5)
-            ] 
-
-            layout_def = @layout [
-                a{0.7w} [grid(3,1)]
-            ]
-
-            final_plot = plot(
-                plots...;
-                layout=layout_def,
-                size=(1400, 600),
-                margin=4Plots.mm
-            )
-
-        # Save plot if asked
-        save_plot_if_requested(final_plot, input, params)
-        return final_plot
-    end
-    save_plot_if_requested(plt_base, input, params)
-    return plt_base
-end
-
 
 
 # --- Create a plot of the plane of interest --- #
@@ -301,19 +261,18 @@ spherical_polarity(u, B_vector) = begin
 end
 
 # --- Calculate magnetic field polarity over regimes of interest --- 
-function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mode="tz")
+function B_data(input; radius=90.0, timestamp=0.0, n_x=20, n_t=20, n_z=20, visual_mode="tz", xspan_range=(70,110), yspan_range=20)
 
     @assert haskey(input, "min_time") && haskey(input, "max_time")
 
-    x_span_low, x_span_high = (35, 110)
-    y_span_value = 35
+    x_span_low, x_span_high = xspan_range #(0.1, 110)
+    y_span_value = yspan_range #55
 
     if visual_mode == "tz"
-        xspan = range(input["min_time"], input["max_time"], n_t) #time axis
+        xspan = range(timestamp + input["min_time"], timestamp + input["max_time"], n_t) #time axis
         yspan = range(-y_span_value, y_span_value, n_z) #z axis
     elseif visual_mode == "xz"
-        xspan = range(x_span_low, x_span_high, n_x) #x axis
-        #println("xspan[end]: ", xspan[end])
+        xspan = range(x_span_low, x_span_high, n_x) #x axis 
         yspan = range(-y_span_value, y_span_value, n_z) #z axis 
     else 
         error("visual_mode not recognised")
@@ -323,37 +282,29 @@ function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mod
 
     if visual_mode == "tz"
         for (i, x) in enumerate(xspan)
-            for (j, y) in enumerate(yspan)
-                #println("\n x=$(x) and y=$(y)")
+            for (j, y) in enumerate(yspan) 
                 u = [radius*AU, 0.0, y*AU, 0.0, 0.0, 0.0]
-                B_vector = B_field(u, input; t=x)
-                #println("B_vector: $(B_vector)")
+                B_vector = B_field(u, input; t=x) 
                 if input["dist_measure"] == "flat"
                     pol = flat_polarity(B_vector)
-                    B_pol[i,j] = pol
-                    #println("B pol: $(pol)")
+                    B_pol[i,j] = pol 
                 else 
                     pol = spherical_polarity(u, B_vector)
-                    B_pol[i,j] = pol 
-                    #println("B pol: $(pol)")
+                    B_pol[i,j] = pol  
                 end 
             end
         end
     elseif visual_mode == "xz"
         for (i, x) in enumerate(xspan)
-            for (j, y) in enumerate(yspan)
-                #println("\n x=$(x) and y=$(y)")
+            for (j, y) in enumerate(yspan) 
                 u = [x*AU, 0.0, y*AU, 0.0, 0.0, 0.0]
-                B_vector = B_field(u, input; t=time)
-                #println("B_vector: $(B_vector)")
+                B_vector = B_field(u, input; t=timestamp)
                 if input["dist_measure"] == "flat"
                     pol = flat_polarity(B_vector)
-                    B_pol[i,j] = pol
-                    #println("B pol: $(pol)")
+                    B_pol[i,j] = pol 
                 else 
                     pol = spherical_polarity(u, B_vector)
-                    B_pol[i,j] = pol 
-                    #println("B pol: $(pol)")
+                    B_pol[i,j] = pol  
                 end 
             end
         end
@@ -361,8 +312,11 @@ function B_data(input; radius=90.0, time=0.0, n_x=20, n_t=20, n_z=20, visual_mod
     return xspan, yspan, B_pol 
 end
 
-# --- Plot the magnetic field plot --- # 
-function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20, visual_mode="tz", msize=2.0)
+
+# --- Plot the magnetic field --- # 
+function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20, visual_mode="tz", xspan_range=(60,105))
+    gr()
+
     if time == "end"
         time_val = Float64(input["max_time"])
     elseif time == "start" 
@@ -373,41 +327,29 @@ function plot_B_polarity(input; radius=90.0, time="end", n_x=20, n_t=20, n_z=20,
         time_val = 0.0
     end 
 
-    # Create the data # Outputs: time in seconds, x in AU, z in AU. 
-    xvalues, yvalues, Bpolarities = B_data(input; radius=radius, time=time_val, n_x=n_x, n_t=n_t, n_z=n_z, visual_mode=visual_mode)
+    xspr = xspan_range
+    yspr = xspr[2] - xspr[1]
 
-    # Flatten the grids 
-    if visual_mode == "tz"
-        xvec = repeat(xvalues ./ yr, outer=length(yvalues)) # outer loop 
-        yvec = repeat(yvalues, inner=length(xvalues)) # inner loop 
-        polvec = vec(Bpolarities)    
-    elseif visual_mode == "xz"
-        xvec = repeat(xvalues, outer=length(yvalues))
-        yvec = repeat(yvalues, inner=length(xvalues))  
-        polvec = vec(Bpolarities) 
+    xvalues, yvalues, Bpolarities = B_data(
+        input; radius=radius, timestamp=time_val, 
+        n_x=n_x, n_t=n_x, n_z=n_x,
+        visual_mode=visual_mode, xspan_range=xspr, yspan_range=yspr)  
+
+    if visual_mode == "xz"
+        divisor = 1.0 #AU
+        title_string = "Time: $(time_val / yr) yr"
+        xlabel, ylabel = ("x [AU]", "z [AU]")
+    else
+        divisor = yr 
+        title_string = "Radius: $(rad_val) AU"
+        xlabel, ylabel = ("t [yr]", "z [AU]")
     end 
 
-    #println("Start and end of xvec: $(xvec[1]) and $(xvec[end])")
+    Plots.heatmap( xvalues ./ divisor , yvalues, Bpolarities', 
+                    margin=8Plots.mm, size=(600, 550), c=:balance,
+                    title=title_string, xlabel=xlabel, ylabel=ylabel, colorbar=false )
+end                     
 
-    # Labels 
-    x_label = visual_mode == "tz" ? "Time [yr]" : "x [AU]"
-    y_label = visual_mode == "tz" ? "z [AU]" : "z [AU]"  
-    title_string = "B_field polarity - Model: $(input["B_model"]); "
-    #println("vis mode: ", visual_mode)
-    title_append = visual_mode == "tz" ? "Radius: $(round(radius, digits=2)) AU" : "Time $(round(time_val / yr, digits=2)) yr"
-    title_string *= title_append 
-    
-    # Map polarity to colors: -1 → blue, +1 → red
-    colors = map(ccc -> ccc == 1 ? :red : :blue, polvec) 
-    
-    plt = Plots.scatter(
-        xvec, yvec, c = colors, ms=msize, #2.0, #3.5, 
-        markerstrokecolor=:black, markerstrokewidth=0.5,
-        xlabel=x_label, ylabel=y_label, title=title_string, legend=false, colorbar=:true, margin = 2Plots.mm, 
-        titlefont=8, guidefont=6, tickfont=6
-    ) 
-    return plt 
-end
 
 
 # --- Charge to mass ratio over time --- 
@@ -421,3 +363,47 @@ function qm_over_time(trajectory_solution, trajectory_qm_values, charging_type)
     return plt 
 end 
 
+
+# --- Magnetic field polarity along the trajectory ---   
+function Bfield_over_time(trajectory_solution, input)
+
+    # --- Extract trajectory ---
+    sol_time = trajectory_solution.t
+    sol_x = [u[1] for u in trajectory_solution.u]
+    sol_y = [u[2] for u in trajectory_solution.u]
+    sol_z = [u[3] for u in trajectory_solution.u]
+
+    npts = length(sol_time)
+
+    # --- Downsample if needed ---
+    if npts > 1000
+        idx = round.(Int, range(1, npts, length=1000))
+        sol_time = sol_time[idx]
+        sol_x = sol_x[idx]
+        sol_y = sol_y[idx]
+        sol_z = sol_z[idx]
+    end
+
+    # --- Storage ---
+    BPolarities = Float64[]
+
+    # --- Loop over trajectory points ---
+    for (t, x, y, z) in zip(sol_time, sol_x, sol_y, sol_z)
+
+        r = sqrt(x^2 + y^2 + z^2)
+        u = [x,y,z]
+
+        # Query magnetic field
+        B_vector = B_field(u, input; t=t) 
+        B_pol = spherical_polarity(u, B_vector) 
+
+        # --- Extract polarity ---
+        push!(BPolarities, B_pol)
+    end
+
+    plt = plot(
+        sol_time ./ yr, BPolarities, size=(700, 300), xlabel="Time yr", ylabel="B Polarity", 
+        linewidth=2.5, margin=3Plots.mm, label="", title="Bfield Polarity")
+
+    return plt #sol_time, BPolarities
+end 

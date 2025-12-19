@@ -38,14 +38,14 @@ alpha_angle = 180.0
 beta_angle = 0.0 
 
 min_time = 0.0
-max_time = 13.0 
-dt = 7000.0 
+max_time = 16.0 
+dt = 50_000.0 
 
 beta_value = 1.0
 q_over_m_value = 16.0 
 qm_initial = 0.0 
 particle_type = "silicate"
-particle_size = 50 
+particle_size = 150 
 charging_type = "continuous" 
 
 

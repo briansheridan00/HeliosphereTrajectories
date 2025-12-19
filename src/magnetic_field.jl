@@ -15,7 +15,7 @@ function B_field(u, input; t=0.0)
 
     if magnetic_model == "simple"  
         if rnorm <= input["distance_HP"]
-            B_vector = [0.0,  Float64(input["B_direction_Heliopause"]) * input["B_mag_Heliopause"], 0.0]
+            B_vector = [0.0, Float64(input["B_direction_Heliopause"]) * input["B_mag_Heliopause"], 0.0]
         else 
             B_vector = [0.0, input["B_mag_ISM"], 0.0] 
         end 
@@ -147,7 +147,7 @@ function B_field(u, input; t=0.0)
             α_sun = (360.0 / T_sun * (time - ((r - r0) / v_SW_TS))) % 360.0 
         elseif r > dist_TS && r <= dist_HP
             ϵ_HCS = (180.0 / T_HCS * (time - (((dist_TS - r0) / v_SW_TS) + ((r - dist_TS) / v_SW_HP)))) % 360.0 
-            α_sun = (360.0 / T_sun * (time - (((dist_TS - r0) / v_SW_TS) + ((r - dist_TS) / v_SW_HP)))) % 360.0  
+            α_sun = (360.0 / T_sun * (time - (((dist_TS - r0) / v_SW_TS) + ((r - dist_TS) / v_SW_HP)))) % 360.0 
         else 
             B_vector = [0.0, input["B_mag_ISM"], 0.0] 
             return B_vector 
