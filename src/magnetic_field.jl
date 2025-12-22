@@ -187,3 +187,66 @@ function B_field(u, input; t=0.0)
     
     return B_vector  
 end 
+
+
+### --- Calculate the magnetic field polarities for a range of position and time values --- #
+# --- Helper functions --- 
+flat_polarity(B_vector) = sign(B_vector[2])
+
+spherical_polarity(u, B_vector) = begin
+    phi = atan(u[2], u[1])
+    e_phi = [-sin(phi), cos(phi), 0.0]
+    sign(dot(B_vector, e_phi))
+end
+
+# --- Calculate magnetic field polarity over regimes of interest --- 
+function B_data(input; radius=90.0, timestamp=0.0, n_x=20, n_t=20, n_z=20, visual_mode="tz", xspan_range=(70,110), yspan_range=20)
+
+    @assert haskey(input, "min_time") && haskey(input, "max_time")
+
+    x_span_low, x_span_high = xspan_range #(0.1, 110)
+    y_span_value = yspan_range #55
+
+    if visual_mode == "tz"
+        xspan = range(timestamp + input["min_time"], timestamp + input["max_time"], n_t) #time axis
+        yspan = range(-y_span_value, y_span_value, n_z) #z axis
+    elseif visual_mode == "xz"
+        xspan = range(x_span_low, x_span_high, n_x) #x axis 
+        yspan = range(-y_span_value, y_span_value, n_z) #z axis 
+    else 
+        error("visual_mode not recognised")
+    end 
+
+    B_pol = zeros(length(xspan), length(yspan))
+
+    if visual_mode == "tz"
+        for (i, x) in enumerate(xspan)
+            for (j, y) in enumerate(yspan) 
+                u = [radius*AU, 0.0, y*AU, 0.0, 0.0, 0.0]
+                B_vector = B_field(u, input; t=x) 
+                if input["dist_measure"] == "flat"
+                    pol = flat_polarity(B_vector)
+                    B_pol[i,j] = pol 
+                else 
+                    pol = spherical_polarity(u, B_vector)
+                    B_pol[i,j] = pol  
+                end 
+            end
+        end
+    elseif visual_mode == "xz"
+        for (i, x) in enumerate(xspan)
+            for (j, y) in enumerate(yspan) 
+                u = [x*AU, 0.0, y*AU, 0.0, 0.0, 0.0]
+                B_vector = B_field(u, input; t=timestamp)
+                if input["dist_measure"] == "flat"
+                    pol = flat_polarity(B_vector)
+                    B_pol[i,j] = pol 
+                else 
+                    pol = spherical_polarity(u, B_vector)
+                    B_pol[i,j] = pol  
+                end 
+            end
+        end
+    end 
+    return xspan, yspan, B_pol 
+end
