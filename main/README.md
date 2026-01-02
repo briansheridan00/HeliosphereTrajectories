@@ -1,9 +1,17 @@
 # Running Trajectories 
 
-The input file contains the relevant simulation information to run the trajectory and plot the results. 
+### Main folder files 
+The main folder draws upon the source code within the `/src` folder to compute trajectories and plot them. The main utilisation is to define a set of parameters, easily run and plot trajectories which follow a predefined plotting format, and run animated trajectories and the Parker spiral magnetic field over time. The following table provides a description of the relevant files. 
 
-Note the following description of the input file parameters. 
+| File Name | Description |
+| :--- | :--- | 
+| `run_trajectory.jl` | The main file to compute a trajectory with defined parameters and plot the trajectory as well as options to plots the magnetic field, charge to mass ratio, and magnetic field polarity experienced by the particle.  |
+| `input_values.toml` | The input parameters for a given trajectory run. The parameter descriptions can be found below. **Note:** The input file should be read out with the custom code defined in the `utils.jl` file within the `/src` folder, which automatically converts times and distances to the correct units. |
+| `animated_trajectories.jl` | Creates an **animation** of the trajectory overlayed on the changing Parker spiral magnetic field. |
 
+
+### Input file 
+The input file contains the relevant simulation information to run the trajectory and plot the results. Note that the parameter value units may not be consistent within the input file, for example using meters or AU. The `load_parameters()` function from `/src/utils.jl` automatically converts the parameters to their required units. The following table outlines the parameters and their descriptions. 
 
 | Parameter | Description |
 | :--- | :--- | 
@@ -43,4 +51,4 @@ Note the following description of the input file parameters.
 | `n_grid` | The number density of the grid of plasma velocity vector arrows. A suitable density is approximately 20. |
 | `plot_color` | The value with which the trajectory is colored; Options: `"speed"` or `"time"`. |
 | `save_fig` | A boolean option to save the figure in a data specific folder. |
-| `annotate_time` | A boolean option to print time stamps in years nearby the trajectory. |
+| `annotate_times` | A boolean option to print time stamps in years nearby the trajectory. |
